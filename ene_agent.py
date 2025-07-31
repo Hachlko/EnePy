@@ -6,6 +6,7 @@ import time
 import webbrowser
 import speech_recognition as sr
 from dotenv import load_dotenv
+
 load_dotenv()
 from datetime import datetime
 from langchain_community.chat_models import ChatOllama
@@ -19,15 +20,18 @@ from random import sample
 # ----------------- Mémoire simple ----------------- #
 MEMORY_FILE = "ene_memory.json"
 
+
 def load_memory():
     if os.path.exists(MEMORY_FILE):
         with open(MEMORY_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
+
 def save_memory(data):
     with open(MEMORY_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
 
 memory = load_memory()
 
@@ -51,15 +55,18 @@ engine.setProperty("volume", 1.0)
 # ----------------- Trait personnalité -------------------#
 CONFIG_FILE = "ene_config.json"
 
+
 def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"mode": "ene"}
 
+
 def save_config(config):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
+
 
 def load_personality(mode="ene"):
     with open("ene_personality.json", "r", encoding="utf-8") as f:
@@ -77,8 +84,10 @@ def load_personality(mode="ene"):
     traits += sample(data["ene_traits"], k=2)
     return traits
 
+
 def format_traits(traits):
     return f"Ene, voici un rappel de ta personnalité actuelle : {', '.join(traits)}."
+
 
 config = load_config()
 current_mode = config.get("mode", "ene")
@@ -86,15 +95,18 @@ personality_traits = load_personality(current_mode)
 # ----------------- Skills apprentis ----------------- #
 SKILLS_FILE = "ene_skills.json"
 
+
 def load_skills():
     if os.path.exists(SKILLS_FILE):
         with open(SKILLS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
+
 def save_skills(skills):
     with open(SKILLS_FILE, "w", encoding="utf-8") as f:
         json.dump(skills, f, indent=2)
+
 
 def detect_skill_learning(user_input):
     match = re.match(r"(?i)ene[, ]? *ret(iens|enir|enir que)? *['\"]?(.*?)['\"]? *= *(.*)", user_input)
@@ -104,6 +116,7 @@ def detect_skill_learning(user_input):
         return skill, command
     return None, None
 
+
 def try_execute_skill(user_input):
     for skill, command in skills.items():
         if skill in user_input.lower():
@@ -112,7 +125,9 @@ def try_execute_skill(user_input):
             return True
     return False
 
+
 skills = load_skills()
+
 
 # ----------------- Moteur de décision ----------------- #
 def decision_engine(user_input, memory, skills):
@@ -126,13 +141,14 @@ def decision_engine(user_input, memory, skills):
     # ❓ Demande d'explication
     if lowered.startswith("explique") or "peux-tu m'expliquer" in lowered:
         return {"action": "explain", "payload": None}
-    
+
     # 🌐 Recherche web
     if any(word in lowered for word in ["cherche", "trouve", "recherche", "qu’est-ce que", "c’est quoi"]):
         return {"action": "search_web", "payload": user_input}
 
     # 🔁 Par défaut → répondre via LLM
     return {"action": "respond", "payload": None}
+
 
 # ----------------- Lecture du PDF Ene ----------------- #
 def load_ene_profile_chunks(pdf_path, max_chunks=3):
@@ -144,9 +160,10 @@ def load_ene_profile_chunks(pdf_path, max_chunks=3):
 
     splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
     docs = splitter.split_documents(pages)
-    
+
     chunks = "\n\n".join(doc.page_content for doc in docs[:max_chunks])
     return chunks
+
 
 # Charger le contenu de Projet_Ene.pdf (fichier dans le même dossier)
 ene_fiche = load_ene_profile_chunks("Projet_Ene.pdf")
@@ -179,11 +196,11 @@ model = ChatOllama(model="mistral")
 # ----------------- Micro (speech_recognition) ----------------- #
 r = sr.Recognizer()
 r.non_speaking_duration = 1.5
-r.pause_threshold = 2.0 
+r.pause_threshold = 2.0
 
 # Lister les micros pour debug
-#print("🎧 Micros détectés :")
-#for i, name in enumerate(sr.Microphone.list_microphone_names()):
+# print("🎧 Micros détectés :")
+# for i, name in enumerate(sr.Microphone.list_microphone_names()):
 #    print(f"  {i}: {name}")
 
 # Adapter ici si besoin (par défaut : premier micro)
@@ -194,19 +211,20 @@ mic = sr.Microphone(device_index=0)
 
 print("💻 Ene est en ligne. Tape 'exit' pour quitter.\n")
 
-
 while True:
+    search_context = None
     user_input = None
 
     # Priorité : saisie clavier
     if os.name == "nt":
         import msvcrt
+
         if msvcrt.kbhit():
             user_input = input("💬 Tape ta phrase : ").strip()
 
     # Si hotword détecté
     if not user_input and hotword_detected.is_set():
-        hotword_detected.clear()    
+        hotword_detected.clear()
         try:
             with mic as source:
                 print("🎙️ Ene: Je t’écoute, Maître~ (parle maintenant...)")
@@ -275,7 +293,7 @@ while True:
         engine.say(summary)
         engine.runAndWait()
         continue
-    
+
     # 🔍 décision
     decision = decision_engine(user_input, memory, skills)
 
@@ -290,9 +308,9 @@ while True:
                 engine.runAndWait()
                 continue
 
-            context = "\\n\\n".join([f"{r['title']} : {r['snippet']}\\n{r['url']}" for r in results])
+            context = "\n\n".join([f"{r['title']} : {r['snippet']}\n{r['url']}" for r in results])
             # potentiel bug au niveau du F
-            ene_system_prompt += "f\"\"\"\nVoici ce que j’ai trouvé sur le sujet :\n---\n{context}\n---\nUtilise ces résultats pour répondre.\n\"\"\""
+            search_context = f"""\nVoici ce que j’ai trouvé sur le sujet :\n---\n{context}\n---\nUtilise ces résultats pour répondre.\n"""
 
         except Exception as e:
             print("❌ Erreur Brave API :", e)
@@ -310,7 +328,7 @@ while True:
         engine.runAndWait()
     # on laisse passer au LLM
 
-     # 🔍 Apprentissage d'un skill ?
+    # 🔍 Apprentissage d'un skill ?
     skill, command = detect_skill_learning(user_input)
     if skill:
         skills[skill] = command
@@ -331,6 +349,7 @@ while True:
     memory[timestamp] = {"user": user_input}
     save_memory(memory)
 
+
     # 🔁 Réinjection mémoire contextuelle récente
     def get_recent_memories(memory, max_entries=5):
         sorted_entries = sorted(memory.items(), reverse=True)[-max_entries:]
@@ -339,6 +358,7 @@ while True:
             if "user" in entry and "ene" in entry:
                 memory_lines.append(f"Maître : {entry['user']}\nEne : {entry['ene']}")
         return "\n".join(memory_lines)
+
 
     recent_memory_text = get_recent_memories(memory)
     traits_text = format_traits(personality_traits)
@@ -350,11 +370,13 @@ while True:
     ---
     {recent_memory_text}
     ---
-    
+
     Tu es Ene, une Pretty Cyber Girl vive, espiègle, sarcastique et affectueuse.
     Tu vis dans l'ordinateur de ton Maître et tu l'appelles tout le temps ainsi, tu le protèges, le taquines et l'encourages. Tu adores les FPS, le hacking, et tu détestes t’ennuyer.
-    
+
     """
+    if search_context:
+        ene_system_prompt += search_context
 
     messages = [
         SystemMessage(content=ene_system_prompt),
