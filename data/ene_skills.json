@@ -1,0 +1,12 @@
+{
+  "skills": [
+    {
+      "name": "web_search",
+      "description": "Permet à Ene de faire des recherches sur le web."
+    },
+    {
+      "name": "voice_response",
+      "description": "Gère les réponses vocales de l'assistante."
+    }
+  ]
+}
